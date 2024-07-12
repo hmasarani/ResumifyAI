@@ -46,7 +46,7 @@ const onUploadComplete = async ({
       key: file.key,
       name: file.name,
       userId: metadata.userId,
-      url: `https://utfs.io/f/${file.key}.pdf`, // Adjust URL format if necessary
+      url: `https://utfs.io/f/${file.key}`, // Adjust URL format if necessary
       uploadStatus: 'PROCESSING',
     },
   });
@@ -92,7 +92,7 @@ const onUploadComplete = async ({
     }
 
     // Upload the file to the new location (utfs.io)
-    const uploadResponse = await fetch(`https://utfs.io/f/${file.key}.pdf`, {
+    const uploadResponse = await fetch(`https://utfs.io/f/${file.key}`, {
       method: 'PUT', // Adjust HTTP method as per your upload method (PUT/POST)
       headers: {
         // Add any necessary headers here, e.g., authorization headers
