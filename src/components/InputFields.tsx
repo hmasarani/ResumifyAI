@@ -1,8 +1,7 @@
-"use client"
+"use client";
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
 
 const MAX_CHARACTER_LIMIT = 5000;
 const MAX_URL_LENGTH = 100;
@@ -36,23 +35,34 @@ const InputFields: React.FC<InputFieldsProps> = ({ fileid }) => {
         return;
       }
     }
-    console.log("API endpoint hit!")
+
     // Call the API to generate a new PDF
     try {
-      const response = await axios.post('src/app/api/message/generate-pdf.ts', {
-        text: textInput,
-        fileId: fileid,
+      console.log("API Endpoint reached");
+
+      const response = await fetch('/api/message/generate-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: textInput,
+          fileId: fileid,
+        }),
       });
 
-      const { generatedId } = response.data;
+      if (!response.ok) {
+        throw new Error(`Request failed with status code ${response.status}`);
+      }
+
+      console.log("API Endpoint hit!");
+      const data = await response.json();
+      const { generatedId } = data;
       router.push(`/dashboard/${fileid}/generated/${generatedId}`);
     } catch (error) {
+      console.log("API endpoint not hit!");
       console.error('Error generating PDF:', error);
-      if (error.response) {
-        alert(`Error: ${error.response.data.message}`);
-      } else {
-        alert('An error occurred while generating the PDF. Please try again.');
-      }
+      alert('An error occurred while generating the PDF. Please try again.');
     }
   };
 

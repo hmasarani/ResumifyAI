@@ -1,37 +1,41 @@
+import { NextApiRequest, NextApiResponse } from 'next';
 import { db } from '@/db';
-import { openai } from '@/lib/openai';
-import { getPineconeClient } from '@/lib/pinecone';
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
-import { OpenAIEmbeddings } from 'langchain/embeddings/openai';
-import { PineconeStore } from 'langchain/vectorstores/pinecone';
-import { NextRequest } from 'next/server';
 import PDFDocument from 'pdfkit';
 import blobStream from 'blob-stream';
 import pino from 'pino';
-
+console.log("Reached generate-pdf.ts")
 const logger = pino({
-  level: 'info', // Adjust the log level as needed (e.g., 'debug', 'error')
-  prettyPrint: true, // Enable pretty printing for console logs (optional)
+  level: 'info',
+  prettyPrint: true,
 });
 
-export const POST = async (req: NextRequest) => {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', ['POST']);
+    res.status(405).end(`Method ${req.method} Not Allowed`);
+    return;
+  }
+
   try {
-    const body = await req.json();
-    logger.info({ body }, 'Received request body');
+    const body = req.body;
+    logger.info('Received request body:', body);
 
     const { getUser } = getKindeServerSession();
     const user = getUser();
-    logger.info({ user }, 'User session');
+    logger.info('User session:', user);
 
     const { id: userId } = user;
 
     if (!userId) {
       logger.warn('Unauthorized access attempt');
-      return new Response('Unauthorized', { status: 401 });
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
     }
+    console.log("reached point 1")
 
     const { fileId, text } = body;
-    logger.info({ fileId }, 'Fetching file with ID');
+    logger.info('Fetching file with ID:', fileId);
 
     const file = await db.file.findFirst({
       where: {
@@ -39,30 +43,30 @@ export const POST = async (req: NextRequest) => {
         userId,
       },
     });
-
+     console.log("reached point 2")
     if (!file) {
-      logger.warn({ fileId }, 'File not found');
-      return new Response('File not found', { status: 404 });
+      logger.warn('File not found:', fileId);
+      res.status(404).json({ message: 'File not found' });
+      return;
     }
 
-    logger.info({ file }, 'File found');
+    logger.info('File found:', file);
 
     // Logic to generate a new PDF based on 'text' and existing PDF
     const generatedPdfUrl = await generateNewPdf(text);
     logger.info({ generatedPdfUrl }, 'Generated PDF URL');
 
     if (generatedPdfUrl) {
-      // Respond with the URL to download the generated PDF
-      return new Response(JSON.stringify({ generatedId: generatedPdfUrl }), { status: 200 });
+      res.status(200).json({ generatedId: generatedPdfUrl });
     } else {
       logger.error('Error generating PDF');
-      return new Response('Error generating PDF', { status: 500 });
+      res.status(500).json({ message: 'Error generating PDF' });
     }
   } catch (error) {
     logger.error({ error }, 'Error in POST handler');
-    return new Response('Internal server error', { status: 500 });
+    res.status(500).json({ message: 'Internal server error' });
   }
-};
+}
 
 async function generateNewPdf(newText: string): Promise<string | null> {
   try {
